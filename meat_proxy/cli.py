@@ -25,6 +25,7 @@ CLAUDE_SETTINGS = Path.home() / ".claude/settings.json"
 CODEX_HOOKS = Path.home() / ".codex/hooks.json"
 SKILL_DIRS = [Path.home() / ".claude/skills/meat-proxy", Path.home() / ".codex/skills/meat-proxy"]
 EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit|apply_patch"
+LOCAL = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never route localhost via HTTP_PROXY
 
 USAGE = f"""meat-proxy {__version__}: stop being the human copy-paste layer between your AI agents.
 
@@ -42,7 +43,7 @@ Board: {BASE}"""
 def api(method, path, body=None, timeout=5):
     req = urllib.request.Request(BASE + path, method=method, data=json.dumps(body).encode() if body else None,
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with LOCAL.open(req, timeout=timeout) as r:
         return json.load(r)
 
 

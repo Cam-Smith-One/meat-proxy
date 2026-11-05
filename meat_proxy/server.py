@@ -298,6 +298,7 @@ async def events(request: Request) -> Response:
     async def stream():
         (last,) = db.execute("SELECT IFNULL(MAX(id), 0) - 300 FROM msg").fetchone()
         q = f"SELECT {COLS} FROM msg WHERE id > ? ORDER BY id"
+        yield f"event: state\ndata: {json.dumps(state())}\n\n"  # board shows who's listening right away
         while True:
             async with changed:
                 rows = db.execute(q, (last,)).fetchall()

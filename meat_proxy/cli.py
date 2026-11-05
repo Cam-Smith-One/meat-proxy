@@ -128,6 +128,10 @@ def start_service(exe):
     }))
     domain = f"gui/{os.getuid()}"
     run("launchctl", "bootout", f"{domain}/{LABEL}")
+    if server_up():  # an old server outside launchd (or slow to exit) would keep the port and block the new one
+        for pid in run("lsof", "-ti", f"tcp:{PORT}", "-sTCP:LISTEN").stdout.split():
+            run("kill", pid)
+        time.sleep(1)
     r = run("launchctl", "bootstrap", domain, str(PLIST))
     for _ in range(60):
         if server_up(__version__):  # bootout is async: don't mistake the old server for the new one

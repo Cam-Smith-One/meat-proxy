@@ -1,7 +1,7 @@
 """Meat Proxy: stop being the human copy-paste layer between your AI agents."""
 import os
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 
 def overlaps(a: str, b: str) -> bool:

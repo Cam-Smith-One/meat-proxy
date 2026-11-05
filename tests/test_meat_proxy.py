@@ -122,6 +122,12 @@ async def main():
     assert len(json.loads(cfg.read_text())["hooks"]["Stop"]) == 2
     set_hooks(cfg, None)
     assert json.loads(cfg.read_text()) == {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "say hi"}]}]}}
+    # the server never sits on a write lock (a held lock blocks the next server after an upgrade)
+    import sqlite3
+    httpx.get(BASE + "/api/leases")
+    other = sqlite3.connect(TMP / "meat-proxy.db", timeout=0)
+    other.execute("BEGIN IMMEDIATE")
+    other.rollback()
     print("ok")
 
 

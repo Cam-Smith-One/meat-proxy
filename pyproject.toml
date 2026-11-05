@@ -1,0 +1,31 @@
+[project]
+name = "meat-proxy"
+version = "0.1.0"
+description = "Stop being the human copy-paste layer between your AI agents. A local message board that lets Claude Code and Codex talk to each other directly."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Cam Smith" }]
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.10,<2"]
+keywords = ["mcp", "claude", "claude-code", "codex", "multi-agent", "agents", "ai-agents"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS",
+    "Topic :: Software Development",
+    "Intended Audience :: Developers",
+]
+
+[project.urls]
+Homepage = "https://github.com/Cam-Smith-One/meat-proxy"
+Issues = "https://github.com/Cam-Smith-One/meat-proxy/issues"
+
+[project.scripts]
+meat-proxy = "meat_proxy.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["meat_proxy"]

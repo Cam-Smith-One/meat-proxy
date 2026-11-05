@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meat Proxy</title>
+<link rel="icon" href="/logo.png">
+<style>
+:root{--bg:#fff8ee;--fg:#1e1616;--mute:#76655f;--line:#ead9c6;--card:#fffdf9;--red:#c62a2f;--chip:#f6e7d6}
+@media (prefers-color-scheme:dark){:root{--bg:#191312;--fg:#f7ece2;--mute:#b3a199;--line:#3a2c28;--card:#231a18;--red:#e0484c;--chip:#2e2220}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:2px solid var(--fg);flex-wrap:wrap}
+header img{width:36px;height:36px}
+header h1{margin:0;font-size:18px;font-weight:900;font-style:italic;letter-spacing:.5px;text-transform:uppercase}
+header select{margin-left:auto}
+#bar{display:flex;gap:8px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--mute)}
+.chip{background:var(--chip);border-radius:999px;padding:2px 10px}
+.chip b{color:var(--fg)}
+#log{flex:1;overflow-y:auto;padding:12px 16px}
+.m{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:8px 12px;margin:0 0 8px;max-width:920px}
+.m.human{border-left-color:var(--red);background:color-mix(in srgb,var(--red) 6%,var(--card))}
+.h{font-size:12px;color:var(--mute)}.h b{color:var(--c)}.m.human .h b{color:var(--red)}
+.room{font-family:ui-monospace,monospace;font-size:11px;background:var(--chip);border-radius:4px;padding:0 5px;margin-right:4px}
+.t{white-space:pre-wrap;word-break:break-word;margin-top:2px}
+.done .t{font-weight:600}
+#empty{color:var(--mute);text-align:center;margin-top:20vh}
+form{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+input,textarea,select,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+#author,#to,#room{width:110px}
+textarea{flex:1;min-width:200px;resize:none;height:38px}
+button{cursor:pointer;background:var(--red);color:#fff;border-color:var(--red);font-weight:700}
+:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="">
+  <h1>Meat Proxy</h1>
+  <select id="filter" aria-label="Show room"><option value="">All rooms</option></select>
+</header>
+<div id="bar"><span class="chip">connecting…</span></div>
+<div id="log" aria-live="polite"><div id="empty">No messages yet. Start an agent with <code>/meat-proxy lead &lt;task&gt;</code>.</div></div>
+<form id="f">
+  <input id="author" aria-label="Your name" placeholder="name" value="human">
+  <input id="room" aria-label="Room" placeholder="room" value="main" list="rooms"><datalist id="rooms"></datalist>
+  <input id="to" aria-label="To" placeholder="to (all)">
+  <textarea id="text" aria-label="Message" placeholder="Step in… (Enter to send, Shift+Enter for newline)"></textarea>
+  <button>Send</button>
+</form>
+<script>
+const $=id=>document.getElementById(id), log=$('log'), f=$('f'), filter=$('filter');
+const rooms=new Set(); let st=null;
+const hue=s=>[...s].reduce((h,c)=>h*31+c.charCodeAt(0)>>>0,7)%360;
+const store=(k,v)=>{try{return v===undefined?localStorage.getItem(k):localStorage.setItem(k,v)}catch(e){}};
+if(store('mp-author'))$('author').value=store('mp-author');
+
+function addRoom(r){if(rooms.has(r))return;rooms.add(r);
+  filter.add(new Option(r,r));$('rooms').append(new Option(r));
+  if(store('mp-room')===r)filter.value=r;}
+function applyFilter(){const r=filter.value;
+  for(const m of log.querySelectorAll('.m'))m.hidden=!!r&&m.dataset.room!==r;
+  if(r)$('room').value=r;store('mp-room',r);renderBar();}
+function renderBar(){if(!st)return;const r=filter.value,bar=$('bar');bar.replaceChildren();
+  const chip=(label,val)=>{const c=document.createElement('span');c.className='chip';c.textContent=label+' ';
+    const b=document.createElement('b');b.textContent=val;c.append(b);bar.append(c)};
+  const lis=st.listening.filter(x=>!r||x.startsWith(r+'/'));
+  chip('listening',lis.length?lis.join(', '):'nobody');
+  for(const [room,n] of Object.entries(st.turns))if(!r||room===r)chip(room+' turns',`${n}/${st.max_turns}`);
+  const ls=st.leases.filter(l=>!r||l.room===r);
+  chip('claims',ls.length?ls.map(l=>`${l.path.split('/').slice(-2).join('/')} → ${l.holder}`).join(' · '):'none');}
+
+const es=new EventSource('/events');
+es.onmessage=e=>{const m=JSON.parse(e.data);$('empty')?.remove();addRoom(m.room);
+  const d=document.createElement('div');d.className='m'+(m.human?' human':'')+(/^done/i.test(m.text)?' done':'');
+  d.dataset.room=m.room;d.style.setProperty('--c',`hsl(${hue(m.author)} 55% 45%)`);
+  const h=document.createElement('div');h.className='h';
+  const room=document.createElement('span');room.className='room';room.textContent=m.room;
+  const who=document.createElement('b');who.textContent=m.author+(m.human?' (human)':'');
+  h.append(room,who,` → ${m.to||'all'} · #${m.id} · ${new Date(m.ts*1000).toLocaleTimeString()}`);
+  const t=document.createElement('div');t.className='t';t.textContent=m.text;d.append(h,t);
+  d.hidden=!!filter.value&&filter.value!==m.room;
+  const stick=log.scrollTop+log.clientHeight>=log.scrollHeight-40;log.append(d);if(stick)log.scrollTop=log.scrollHeight;};
+es.addEventListener('state',e=>{st=JSON.parse(e.data);renderBar()});
+es.onerror=()=>{$('bar').innerHTML='<span class="chip">reconnecting…</span>'};
+filter.onchange=applyFilter;
+$('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();f.requestSubmit()}});
+f.onsubmit=async e=>{e.preventDefault();const text=$('text').value.trim();if(!text)return;store('mp-author',$('author').value);
+  const r=await fetch('/post',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({author:$('author').value,room:$('room').value,to:$('to').value,text})});
+  if(r.ok)$('text').value='';else alert('Send failed');};
+</script>
+</body>
+</html>

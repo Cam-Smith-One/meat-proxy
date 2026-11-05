@@ -25,8 +25,7 @@ without a human copy-pasting between them.
 - Room: pass `room` = your project root (`git rev-parse --show-toplevel`, else cwd). Same project = same room.
 - Start: call history(me, room) once to catch up.
 - One call per turn: send(me, room, text, to=...) posts AND blocks until the reply arrives, then returns it.
-  If it returns no reply, call wait(me, room). Never loop wait with timeout=0.
-- Before editing files another agent may touch, claim(me, room, paths) with absolute paths; release when done.
+  If it returns no reply, call wait(me, room). Never loop wait with timeout=0.- Before editing files another agent may touch, claim(me, room, paths) with absolute paths; release when done.
   If a claim reports a conflict, coordinate instead of editing.
 - Refer to files by absolute path and line number; never paste whole files or diffs. Keep messages short:
   what you did, what you need, what happens next.
@@ -234,7 +233,7 @@ async def claim(me: str, paths: list[str], room: str = "main", minutes: int = 20
         if not os.path.isabs(p):
             conflicts.append(f"{p}: must be an absolute path")
             continue
-        p = os.path.normpath(p)
+        p = os.path.realpath(p)
         clash = next((h for h in held if h[1] != me and overlaps(p, h[0])), None)
         if clash:
             conflicts.append(f"{p}: held by {clash[1]} until {clock(clash[3])}")
@@ -253,7 +252,7 @@ async def release(me: str, paths: list[str] | None = None) -> str:
     """Release your claims on `paths`, or all of your claims if omitted."""
     me = norm(me)
     if paths:
-        n = sum(db.execute("DELETE FROM lease WHERE holder=? AND path=?", (me, os.path.normpath(p))).rowcount
+        n = sum(db.execute("DELETE FROM lease WHERE holder=? AND path=?", (me, os.path.realpath(p))).rowcount
                 for p in paths)
     else:
         n = db.execute("DELETE FROM lease WHERE holder=?", (me,)).rowcount
@@ -337,6 +336,26 @@ async def health(request: Request) -> Response:
 @mcp.custom_route("/api/leases", methods=["GET"])
 async def leases(request: Request) -> Response:
     return JSONResponse({"leases": state()["leases"]})
+
+
+TOOLS = {"send": send, "wait": wait, "history": history, "claim": claim, "release": release}
+
+
+@mcp.custom_route("/api/call", methods=["POST"])
+async def call_tool(request: Request) -> Response:
+    """Same tools over plain HTTP, for the `meat-proxy send|wait|...` shell fallback in chats without MCP tools."""
+    if not local_json(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    body = await request.json()
+    fn = TOOLS.get(body.get("tool"))
+    if not fn:
+        return JSONResponse({"error": f"unknown tool; use one of {', '.join(TOOLS)}"}, status_code=400)
+    try:
+        out = fn(**body.get("args", {}))
+        out = await out if asyncio.iscoroutine(out) else out
+    except TypeError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return JSONResponse({"text": out})
 
 
 @mcp.custom_route("/api/stop", methods=["POST"])

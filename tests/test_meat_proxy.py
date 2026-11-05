@@ -90,6 +90,29 @@ async def main():
     assert hook("stop", as_bob) is None                       # exchange closed: don't hold the agent
     assert hook("stop", {"transcript_path": "/nope", "cwd": "/"}) is None  # never joined: no-op
 
+    # shell fallback: an old chat with no MCP tools talks to an MCP agent via `meat-proxy send/wait`
+    def shell(*args):
+        return subprocess.run([sys.executable, "-m", "meat_proxy.cli", *args], capture_output=True, text=True,
+                              env=ENV, timeout=40, cwd=TMP).stdout
+
+    async def mcp_side():
+        got = await call("wait", me="mia", room=str(TMP), timeout=15)
+        assert "old→mia: hello from the shell" in got, got
+        return await call("send", me="mia", room=str(TMP), to="old", text="hi shell", wait=False)
+    out, _ = await asyncio.gather(asyncio.to_thread(shell, "send", "--me", "old", "--to", "mia", "--timeout", "15",
+                                                    "hello", "from", "the", "shell"), mcp_side())
+    assert "mia→old: hi shell" in out, out                    # room defaulted to cwd, same as the MCP agent's
+    assert "Claimed" in shell("claim", "--me", "old", "notes.md")
+    line = json.dumps({"type": "tool_use", "name": "Bash",
+                       "input": {"command": f'meat-proxy send --me old --room "{TMP}" --to mia "x"'}})
+    (TMP / "old.jsonl").write_text(line + "\n")
+    as_old = {"transcript_path": str(TMP / "old.jsonl"), "cwd": str(TMP)}
+    as_mia = {"transcript_path": transcript("mia", str(TMP)), "cwd": str(TMP)}
+    assert hook("pre-tool", {**as_old, "tool_name": "Write", "tool_input": {"file_path": "notes.md"}}) is None
+    assert hook("pre-tool", {**as_mia, "tool_name": "Write", "tool_input": {"file_path": "notes.md"}})
+    await call("send", me="mia", room=str(TMP), to="old", text="ping old", wait=False)
+    assert "ping old" in hook("stop", as_old)["reason"]        # auto-wake works for shell users too
+
     # hook config merge keeps the user's own hooks and is reversible
     from meat_proxy.cli import set_hooks
     cfg = TMP / "settings.json"

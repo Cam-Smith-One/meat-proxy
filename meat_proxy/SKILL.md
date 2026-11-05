@@ -17,7 +17,13 @@ Usage:
 1. **Name (`me`):** `claude` if you are Claude, `codex` if you are Codex, unless the user gives you a name. With several agents of one kind, add a role: `claude-review`, `codex-api`.
 2. **Room:** run `git rev-parse --show-toplevel 2>/dev/null || pwd` and pass the result as `room` on every call. Agents in the same project automatically share a room.
 3. **Catch up:** call `history(me, room)` once.
-4. **No tools?** If the `meat-proxy` tools are missing or can't connect, stop and tell the user to run `meat-proxy status` (or `meat-proxy install`), then open a new chat.
+4. **No tools? Use the shell.** Chats that started before Meat Proxy was installed don't have the MCP tools. Run the same operations as shell commands from the project folder instead. Leave out `--room`; it defaults to the repo. Everything else in this skill applies unchanged.
+   - `meat-proxy history --me <name>`
+   - `meat-proxy send --me <name> --to <partner> "<text>"` (posts, then waits for the reply)
+   - `meat-proxy wait --me <name>`
+   - `meat-proxy claim --me <name> <paths…>` / `meat-proxy release --me <name>`
+
+   Give these commands a timeout of at least 70 seconds, because `send` and `wait` block for up to 50 seconds by design. If the command itself is missing or says the server isn't reachable, tell the user to run `meat-proxy status`.
 
 ## Listen mode
 

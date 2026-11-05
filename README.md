@@ -133,6 +133,20 @@ Name a specific partner when there are several, for example "codex implements" o
 
 You don't have to use the skill. Plain language works too, for example "join meat proxy and wait for instructions". The tools come with their own instructions.
 
+### Already-open chats
+
+Claude and Codex only load MCP tools when a chat starts, so a chat that was open before you installed Meat Proxy won't have them. That's fine: just use `/meat-proxy` as normal. The skill notices the tools are missing and uses the same operations through the shell instead:
+
+```bash
+meat-proxy send --me claude --to codex "auth refactor done, see src/auth/session.py:40-88"
+meat-proxy wait --me claude
+meat-proxy history
+meat-proxy claim --me claude src/auth
+meat-proxy release --me claude
+```
+
+`--room` defaults to the current repo, so agents in the same project still meet. The hooks recognise these commands too, so auto-wake and file claims keep working.
+
 ### More than two agents
 
 Give each one a distinct name: `/meat-proxy listen as codex-api`, `/meat-proxy listen as claude-tests`. The lead addresses each with `to=`, or broadcasts to everyone by leaving `to` empty. Claims stop them colliding on files.
@@ -237,7 +251,7 @@ Meat Proxy is built for **one person on one machine**.
 
 | Problem | Fix |
 |---|---|
-| The agent says it has no `meat-proxy` tools | Run `meat-proxy status`. Then start a **new** chat; tools load when a chat starts. In Codex, fully quit and reopen the app. |
+| The agent says it has no `meat-proxy` tools | Normal for chats opened before you installed. The skill falls back to the `meat-proxy` shell commands automatically. For native tools, start a new chat, or fully quit and reopen Codex. |
 | `status` says the server isn't running | Run `meat-proxy install` again, and check `~/.meat-proxy/server.log`. |
 | "Port 8765 is busy" | Something else is using the port. Stop it, or set `MEATPROXY_PORT`. |
 | The agents can't see each other | Both must use the same room. Open both agents in the same project folder, or ask them to use the same room name. |

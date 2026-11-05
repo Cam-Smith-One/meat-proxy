@@ -35,6 +35,13 @@ USAGE = f"""meat-proxy {__version__}: stop being the human copy-paste layer betw
   meat-proxy serve       run the server in the foreground
   meat-proxy hook stop|pre-tool   (called by Claude/Codex hooks, not by you)
 
+Agent commands (for chats without the MCP tools; room defaults to this repo):
+  meat-proxy send --me NAME [--to NAME] [--no-wait] [--timeout 50] TEXT
+  meat-proxy wait --me NAME [--timeout 50]
+  meat-proxy history [--me NAME] [--limit 30]
+  meat-proxy claim --me NAME [--minutes 20] PATH...
+  meat-proxy release --me NAME [PATH...]
+
 Board: {BASE}"""
 
 
@@ -202,8 +209,9 @@ def status():
 
 # --- hooks (run by Claude Code / Codex; must never break the agent) ------------------------------
 
-ME = re.compile(r'\\*"me\\*"\s*:\s*\\*"([^"\\]+)')
-ROOM = re.compile(r'\\*"room\\*"\s*:\s*\\*"([^"\\]+)')
+# MCP calls look like "me": "claude"; shell-fallback calls look like --me claude
+ME = re.compile(r'\\*"me\\*"\s*:\s*\\*"([^"\\]+)|--me[ =]\\*["\']?([\w.-]+)')
+ROOM = re.compile(r'\\*"room\\*"\s*:\s*\\*"([^"\\]+)|--room[ =]\\*["\']?([^"\'\\\s]+)')
 PATCH_FILE = re.compile(r"\*\*\* (?:Update|Add|Delete) File: ([^\n\\]+)")
 
 
@@ -219,9 +227,9 @@ def identity(data):
     for line in tail.splitlines():
         if "meat-proxy" in line or "meat_proxy" in line:
             if m := ME.search(line):
-                me = m.group(1)
+                me = m.group(1) or m.group(2)
                 if r := ROOM.search(line):
-                    room = r.group(1)
+                    room = r.group(1) or r.group(2)
     return me, room
 
 
@@ -230,7 +238,8 @@ def hook_stop(data):
     if not me:
         return  # this session never joined a room
     wait = int(os.environ.get("MEATPROXY_HOOK_WAIT", 240))
-    res = api("POST", "/api/stop", {"me": me, "room": room or data.get("cwd"), "wait": wait}, timeout=wait + 15)
+    room = room or default_room(data.get("cwd"))
+    res = api("POST", "/api/stop", {"me": me, "room": room, "wait": wait}, timeout=wait + 15)
     if res.get("messages"):
         print(json.dumps({"decision": "block", "reason": (
             f"Meat Proxy: new messages for you ({me}) in room '{res['room']}':\n{res['messages']}\n"
@@ -271,10 +280,57 @@ def hook(kind):
         pass  # proxy down or odd input: never block the agent's real work
 
 
+def default_room(cwd=None):
+    """The repo root (or cwd), matching what agents pass as `room` over MCP."""
+    r = run("git", "-C", cwd or os.getcwd(), "rev-parse", "--show-toplevel")
+    return r.stdout.strip() if r.returncode == 0 else (cwd or os.getcwd())
+
+
+def agent_cmd(argv):
+    """Shell fallback for chats that started before Meat Proxy was installed and so have no MCP tools."""
+    import argparse
+    p = argparse.ArgumentParser(prog="meat-proxy")
+    sub = p.add_subparsers(dest="tool", required=True)
+    for name in ("send", "wait", "history", "claim", "release"):
+        s = sub.add_parser(name)
+        s.add_argument("--me", required=name != "history", help="your agent name, e.g. claude or codex")
+        if name != "release":
+            s.add_argument("--room", default=None, help="project root or room name (default: this repo)")
+        if name == "send":
+            s.add_argument("text", nargs="+")
+            s.add_argument("--to")
+            s.add_argument("--no-wait", dest="wait", action="store_false")
+        if name in ("send", "wait"):
+            s.add_argument("--timeout", type=int, default=50)
+        if name == "history":
+            s.add_argument("--limit", type=int, default=30)
+        if name in ("claim", "release"):
+            s.add_argument("paths", nargs="*")
+        if name == "claim":
+            s.add_argument("--minutes", type=int, default=20)
+    a = vars(p.parse_args(argv))
+    tool = a.pop("tool")
+    if "room" in a:
+        a["room"] = a["room"] or default_room()
+    if tool == "send":
+        a["text"] = " ".join(a["text"])
+    if tool == "claim":
+        a["paths"] = [os.path.abspath(x) for x in a["paths"]]
+    if tool == "release":
+        a["paths"] = [os.path.abspath(x) for x in a["paths"]] or None
+    try:
+        res = api("POST", "/api/call", {"tool": tool, "args": a}, timeout=a.get("timeout", 0) + 15)
+    except Exception as e:
+        sys.exit(f"Meat Proxy server not reachable at {BASE} ({e}). Run: meat-proxy status")
+    print(res.get("text") or res)
+
+
 def main():
     args = sys.argv[1:]
     cmd = args[0] if args else ""
-    if cmd == "serve":
+    if cmd in ("send", "wait", "history", "claim", "release"):
+        agent_cmd(args)
+    elif cmd == "serve":
         from .server import run as serve
         serve()
     elif cmd in ("install", "uninstall", "status"):

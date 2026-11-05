@@ -36,7 +36,7 @@ Usage:
 1. Split the work. By default the partner implements and you review, unless the task suggests a better split. If you will edit files yourself, `claim` them first.
 2. Your first `send` gives the partner: the goal, the files involved (absolute paths), its part, and what "done" looks like. Tell it to `claim` files before editing them.
 3. Each turn: read the reply, check the real files or `git diff` yourself instead of trusting the summary, then send concrete next steps or approval.
-4. The room enforces a turn cap and warns you near the end. Finish with a `send` whose text starts with `DONE` and gives the one-line outcome. Then tell the user what was done, what you verified and what is left.
+4. If the room has a turn cap it warns you near the end. Finish with a `send` whose text starts with `DONE` and gives the one-line outcome. Then tell the user what was done, what you verified and what is left.
 
 ## Rules
 

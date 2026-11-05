@@ -67,7 +67,7 @@ function renderBar(){if(!st)return;const r=filter.value,bar=$('bar');bar.replace
     const b=document.createElement('b');b.textContent=val;c.append(b);bar.append(c)};
   const lis=st.listening.filter(x=>!r||x.startsWith(r+'/'));
   chip('listening',lis.length?lis.join(', '):'nobody');
-  for(const [room,n] of Object.entries(st.turns))if(!r||room===r)chip(room+' turns',`${n}/${st.max_turns}`);
+  for(const [room,n] of Object.entries(st.turns))if(!r||room===r)chip(room+' turns',st.max_turns?`${n}/${st.max_turns}`:n);
   const ls=st.leases.filter(l=>!r||l.room===r);
   chip('claims',ls.length?ls.map(l=>`${l.path.split('/').slice(-2).join('/')} → ${l.holder}`).join(' · '):'none');
   const to=$('room').value.trim().toLowerCase()||'main', here=st.listening.filter(x=>x.startsWith(to+'/')).length;

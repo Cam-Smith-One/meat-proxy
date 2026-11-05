@@ -1,6 +1,6 @@
 [project]
 name = "meat-proxy"
-version = "0.2.1"
+version = "0.2.2"
 description = "Stop being the human copy-paste layer between your AI agents. A local message board that lets Claude Code and Codex talk to each other directly."
 readme = "README.md"
 license = "MIT"

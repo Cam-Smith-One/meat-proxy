@@ -56,7 +56,7 @@ Either agent can lead: Claude leads Codex, Codex leads Claude, or two of the sam
 | ⏰ **Agents never fall asleep** | If an agent ends its turn mid-conversation, a Stop hook holds it until the next message lands, then hands the message straight back. No nudging. |
 | 🏠 **A room per project** | Agents working in the same repo share a room automatically. Run three pairs across three projects and they never cross wires. |
 | 🔒 **File claims** | Agents `claim` files before editing them. If another agent tries to edit a claimed file, a hook blocks the edit and tells it who holds the file. No more two agents clobbering one file. |
-| 🛑 **Turn cap** | Every exchange has a hard limit on agent messages (12 by default). Agents get warned near the end, and the bridge refuses more until they wrap up with `DONE` or you extend it. No runaway bills from two models agreeing with each other forever. |
+| 🛑 **Optional turn cap** | Off by default. Set `MEATPROXY_MAX_TURNS` to put a hard limit on agent messages per exchange if you leave agents running unattended. |
 | 👀 **Live board** | Open <http://127.0.0.1:8765> to watch every room in real time: who's listening, who holds which files, and how many turns are left. Type into any room; your messages are marked *(human)* and override the agents. |
 | ⚡ **One-command install** | `meat-proxy install` sets everything up. The server starts at login, so it's always there. |
 
@@ -117,7 +117,7 @@ What happens:
 4. The lead checks the real files and diff (not just the summary), then sends fixes or approval.
 5. When it's finished, the lead sends `DONE` with a one-line outcome. That closes the exchange and releases all claims. Both agents then report back to you in their own windows.
 
-**Step in at any time** by typing in the board. Pick the room, optionally pick a recipient, and send. Agents treat `(human)` messages as instructions from you, and a human message also resets the turn cap.
+**Step in at any time** by typing in the board. Pick the room, optionally pick a recipient, and send. Agents treat `(human)` messages as instructions from you, and a human message also resets the turn cap if you've set one.
 
 ### Prompts that work well
 
@@ -197,9 +197,9 @@ claim(me="codex", room="/code/ember", paths=["/code/ember/src/auth"], minutes=20
 
 ### Turn cap
 
-Two agents left alone can politely agree with each other forever, at your expense. Each exchange allows `MEATPROXY_MAX_TURNS` agent messages (default 12, about 6 rounds).
+Off by default: agents keep working until one of them sends `DONE`. If you leave agents running unattended and want a ceiling, set `MEATPROXY_MAX_TURNS` (for example 30) in the server's environment.
 
-- From two turns before the cap, every send carries a `[turn n/12: wrap up soon]` note.
+- From two turns before the cap, every send carries a `[turn n/30: wrap up soon]` note.
 - At the cap, `send` is refused unless the message starts with `DONE`.
 - A `DONE` message, or any message from you on the board, starts a fresh exchange. So "keep going" from the board is how you extend it.
 
@@ -234,7 +234,7 @@ Set these as environment variables. For the login item, add them to `~/Library/L
 |---|---|---|
 | `MEATPROXY_PORT` | `8765` | Port for the server, board and hooks |
 | `MEATPROXY_HOME` | `~/.meat-proxy` | Where the database and log live |
-| `MEATPROXY_MAX_TURNS` | `12` | Agent messages allowed per exchange |
+| `MEATPROXY_MAX_TURNS` | `0` (off) | Agent messages allowed per exchange |
 | `MEATPROXY_HOOK_WAIT` | `240` | Seconds the Stop hook waits for the next message (`0` = don't wait) |
 
 ## Security model
@@ -269,7 +269,7 @@ There are other good projects in this space. Here's an honest map:
 | Conversation style | Live: `send` blocks for the reply | Mail: inbox and threads | Ask and answer | Push |
 | Wakes idle agents | ✅ Stop hook | | | ✅ |
 | File claims | ✅ enforced by hook | ✅ advisory leases | | |
-| Turn cap / cost guard | ✅ | | | |
+| Optional turn cap / cost guard | ✅ | | | |
 | Live human board | ✅ built in | ✅ web UI | | Discord |
 | Setup | `uv tool install` + `meat-proxy install` | Install script | npm | Postgres + Discord |
 
@@ -281,7 +281,7 @@ There are other good projects in this space. Here's an honest map:
 No. Two Claude windows work fine, as do two Codex windows, or any mix. Just give them different names.
 
 **Does this use more tokens?**
-Fewer than you being the proxy. Waiting costs nothing, because a blocked tool call isn't generating tokens. Messages are short, and the agents pass file paths instead of pasting code. The turn cap puts a ceiling on the total.
+Fewer than you being the proxy. Waiting costs nothing, because a blocked tool call isn't generating tokens. Messages are short, and the agents pass file paths instead of pasting code. Set a turn cap if you want a hard ceiling on the total.
 
 **Can the agents be in different projects?**
 Yes. Have them use the same `room` name explicitly, for example `/meat-proxy lead in room "launch"…`, and use absolute paths in messages.

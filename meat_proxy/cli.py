@@ -54,9 +54,10 @@ def api(method, path, body=None, timeout=5):
         return json.load(r)
 
 
-def server_up():
+def server_up(version=None):
     try:
-        return api("GET", "/api/health", timeout=2).get("app") == "meat-proxy"
+        h = api("GET", "/api/health", timeout=2)
+        return h.get("app") == "meat-proxy" and version in (None, h.get("version"))
     except Exception:
         return False
 
@@ -129,7 +130,7 @@ def start_service(exe):
     run("launchctl", "bootout", f"{domain}/{LABEL}")
     r = run("launchctl", "bootstrap", domain, str(PLIST))
     for _ in range(60):
-        if server_up():
+        if server_up(__version__):  # bootout is async: don't mistake the old server for the new one
             return say(True, f"Server running at {BASE} (starts at login)")
         time.sleep(0.5)
     say(False, f"Server didn't come up. Is something else on port {PORT}? See {HOME / 'server.log'} {r.stderr.strip()}")

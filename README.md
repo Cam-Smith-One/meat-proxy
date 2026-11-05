@@ -26,11 +26,11 @@ You have Claude in one window and Codex in another. Claude writes a plan, so you
 Meat Proxy takes you out of the loop. Both agents join a shared room for your project, and they hand work back and forth directly: brief, implement, review, fix, done. You watch the conversation live in your browser and type into it whenever you want to steer.
 
 ```text
-Codex  ▸ /meat-proxy listen
-Claude ▸ /meat-proxy lead add rate limiting to the API, codex implements, you review
+Agent A ▸ /meat-proxy listen
+Agent B ▸ /meat-proxy lead add rate limiting to the API, the other agent implements, you review
 ```
 
-That's it. Go make a coffee.
+Either agent can lead: Claude leads Codex, Codex leads Claude, or two of the same kind work together. That's it. Go make a coffee.
 
 ## Contents
 
@@ -91,19 +91,21 @@ meat-proxy status
 
 ## Use it
 
-Open both agents **in the same project folder**. Start the listener first, then give the lead the task.
+Open both agents **in the same project folder**. Start the listener first, then give the lead the task. Either app can take either role.
 
-**Codex (or whichever agent does the work):**
+**The agent that does the work:**
 
 ```text
 /meat-proxy listen
 ```
 
-**Claude (or whichever agent runs the show):**
+**The agent that runs the show:**
 
 ```text
-/meat-proxy lead refactor the auth middleware in src/auth, codex implements, you review against our tests
+/meat-proxy lead refactor the auth middleware in src/auth, the other agent implements, you review against our tests
 ```
+
+**Which one should lead?** Give the lead role to whichever model you trust more for planning and review on this task, and let the other one do the hands-on work. Swap them whenever you like.
 
 Then watch at <http://127.0.0.1:8765>.
 
@@ -121,13 +123,15 @@ What happens:
 
 | Pattern | Lead prompt |
 |---|---|
-| Build and review | `/meat-proxy lead build X. codex implements, you review and test` |
-| Second opinion | `/meat-proxy lead ask codex to independently review src/payments for bugs, then compare notes with your own review` |
-| Split by area | `/meat-proxy lead codex does the API in api/, you do the UI in web/. agree the contract first` |
-| Debug together | `/meat-proxy lead the login test is flaky. you investigate the frontend, codex the backend, share findings` |
-| Hand-off | `/meat-proxy lead hand the migration plan in docs/plan.md to codex to execute step by step, check each step` |
+| Build and review | `/meat-proxy lead build X. the other agent implements, you review and test` |
+| Second opinion | `/meat-proxy lead ask the other agent to independently review src/payments for bugs, then compare notes with your own review` |
+| Split by area | `/meat-proxy lead the other agent does the API in api/, you do the UI in web/. agree the contract first` |
+| Debug together | `/meat-proxy lead the login test is flaky. you investigate the frontend, the other agent the backend, share findings` |
+| Hand-off | `/meat-proxy lead hand the migration plan in docs/plan.md to the other agent to execute step by step, check each step` |
 
-You don't have to use the skill. Plain language works too, for example "join meat proxy as codex and wait for claude". The tools come with their own instructions.
+Name a specific partner when there are several, for example "codex implements" or "claude reviews".
+
+You don't have to use the skill. Plain language works too, for example "join meat proxy and wait for instructions". The tools come with their own instructions.
 
 ### More than two agents
 
@@ -247,7 +251,7 @@ There are other good projects in this space. Here's an honest map:
 
 | | Meat Proxy | [mcp_agent_mail](https://github.com/Dicklesworthstone/mcp_agent_mail) | [agent-peers](https://github.com/ThomasMarcelis/agent-peers) | [agent-comms-mcp](https://github.com/watchout/agent-comms-mcp) |
 |---|---|---|---|---|
-| Built for | 2–5 agents pair-working, with you watching | Swarms of agents coordinating asynchronously | Cross-tool Q&A between sessions | Push delivery and team chat |
+| Built for | 2–5 agents pair-working (any of them can lead), with you watching | Swarms of agents coordinating asynchronously | Cross-tool Q&A between sessions | Push delivery and team chat |
 | Conversation style | Live: `send` blocks for the reply | Mail: inbox and threads | Ask and answer | Push |
 | Wakes idle agents | ✅ Stop hook | | | ✅ |
 | File claims | ✅ enforced by hook | ✅ advisory leases | | |

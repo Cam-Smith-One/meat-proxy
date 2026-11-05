@@ -160,8 +160,8 @@ def install():
     print(f"""
 Done. Next:
   1. Restart Claude and Codex (new chats pick up the tools). Codex asks you to trust the two new hooks once.
-  2. Codex:  /meat-proxy listen
-     Claude: /meat-proxy lead <your task>
+  2. In one agent (Claude or Codex):  /meat-proxy listen
+     In the other:                    /meat-proxy lead <your task>
   3. Watch and step in at {BASE}
 """)
 
